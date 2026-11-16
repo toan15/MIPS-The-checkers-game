@@ -34,7 +34,12 @@ msg_err_occ:      .asciiz "Loi: O dich da co quan!\n"
 msg_err_dir:      .asciiz "Loi: Huong di hoac khoang cach sai!\n"
 msg_err_capture:  .asciiz "Loi: Bat buoc phai an quan!\n"
 msg_err_chain:    .asciiz "Loi: Phai nhay an tiep!\n"
+msg_err_nomove:   .asciiz "Loi: Quan nay khong co nuoc di hop le!\n"
 
+msg_draw_offered: .asciiz "You offered a draw. Opponent accepts by entering 0 on their turn.\n"
+msg_draw_pending: .asciiz "Opponent offers a draw. Enter 0 to accept, or make a move to decline.\n"
+msg_draw_already: .asciiz "You have already offered a draw.\n"
+msg_draw:         .asciiz "Draw agreed. The game is a draw!\n"
 .text
 .globl main
 main:
@@ -81,34 +86,132 @@ show_red:
     print_str(msg_red_turn)
 
     # TODO: cho phep cau hoa (hoi nguoi choi, ghi draw_offer_*, ca hai dong y -> hoa)
-    # TODO: che do chon quan bang so:
-    #       nhap so o -> selected_square, ve highlight; nhap -1 de bo chon;
-    #       nhap so o dich (nam trong move_list) de di
 
+# ------------------------------------------------------------
+# Vong nhap kieu chon quan bang so
+#   selected_square = -1 : chua chon quan -> hoi "Enter starting square"
+#   selected_square >= 1 : dang chon quan -> hoi "Enter landing square"
+#     - nhap -1            : bo chon
+#     - nhap o quan cung phe: doi quan chon
+#     - nhap so khac       : coi nhu o dich -> is_valid_move
+#   Thanh ghi: $s0 = o dang chon, $s2 = so vua nhap
+# ------------------------------------------------------------
 ask_move:
-ask_start:
-    # [C.1b] Nhap o xuat phat + kich hoat highlight tren Bitmap
-    print_str(msg_enter_start)
-    read_int
-    move $s0, $v0                    # o xuat phat
-    sw   $s0, selected_square        # kich hoat highlight cho B
-    lw   $a0, current_player
-    jal  draw_board                  # ve lai: Bitmap hien highlight
-
-ask_land:
-    print_str(msg_enter_land)
-    read_int
-    move $s1, $v0                    # o dich
-
     li   $t0, -1
-    sw   $t0, selected_square        # reset highlight truoc khi validate
+    sw   $t0, selected_square        # luot moi: chua chon quan
 
-    move $a0, $s0
-    move $a1, $s1
+    lw   $t0, current_player
+    bnez $t0, pend_red_turn
+    lw   $t1, draw_offer_red         # luot Den: xem Do co cau hoa khong
+    j    pend_check
+pend_red_turn:
+    lw   $t1, draw_offer_black       # luot Do: xem Den co cau hoa khong
+pend_check:
+    beqz $t1, ask_start
+    print_str(msg_draw_pending)
+ask_start:
+    lw   $t0, selected_square
+    bltz $t0, prompt_select
+    print_str(msg_enter_land)
+    j    read_cmd
+prompt_select:
+    print_str(msg_enter_start)
+read_cmd:
+    read_int
+    move $s2, $v0                    # so vua nhap
+    lw   $s0, selected_square        # o dang chon (-1 neu chua)
+    bgez $s0, have_selected
+    beqz $s2, draw_offer
+    j do_select
+have_selected:
+    # --- dang chon quan ---
+    li   $t0, -1
+    beq  $s2, $t0, do_deselect
+    blt  $s2, 1, do_move             # ngoai khoang -> de is_valid_move bao loi
+    bgt  $s2, 32, do_move
+    move $a0, $s2
+    jal  get_piece
+    beqz $v0, do_move                # o trong -> la o dich
+    move $a0, $v0
+    jal  piece_owner
+    lw   $t0, current_player
+    beq  $v0, $t0, do_select         # quan cung phe -> doi quan chon
+    j    do_move                     # quan doi thu -> is_valid_move bao ERR_OCCUPIED
+
+draw_offer:
+    lw   $t0, current_player
+    bnez $t0, draw_offer_by_red
+    lw   $t1, draw_offer_red
+    bnez $t1, game_draw              # Do da cau hoa truoc -> hoa
+    lw   $t2, draw_offer_black
+    bnez $t2, draw_offer_dup
+    li   $t2, 1
+    sw   $t2, draw_offer_black
+    print_str(msg_draw_offered)
+    j    ask_start
+draw_offer_by_red:
+    lw   $t1, draw_offer_black
+    bnez $t1, game_draw              # Den da cau hoa truoc -> hoa
+    lw   $t2, draw_offer_red
+    bnez $t2, draw_offer_dup
+    li   $t2, 1
+    sw   $t2, draw_offer_red
+    print_str(msg_draw_offered)
+    j    ask_start
+draw_offer_dup:
+    print_str(msg_draw_already)
+    j    ask_start
+
+game_draw:
+    print_str(msg_draw)
+    j    go_ask
+do_deselect:
+    li   $t0, -1
+    sw   $t0, selected_square
+    lw   $a0, current_player
+    jal  draw_board                  # xoa highlight
+    j    ask_start
+
+do_select:
+    blt  $s2, 1, sel_err_range
+    bgt  $s2, 32, sel_err_range
+    move $a0, $s2
+    jal  get_piece
+    beqz $v0, sel_err_empty
+    move $a0, $v0
+    jal  piece_owner
+    lw   $t0, current_player
+    bne  $v0, $t0, sel_err_own
+    move $a0, $s2
+    jal  get_valid_moves             # da loc theo FLAG_FORCE_CAPTURE
+    lw   $t0, move_count
+    beqz $t0, sel_err_nomove
+    sw   $s2, selected_square
+    lw   $a0, current_player
+    jal  draw_board                  # Bitmap hien highlight
+    j    ask_start
+sel_err_range:
+    print_str(msg_err_range)
+    j    ask_start
+sel_err_empty:
+    print_str(msg_err_empty)
+    j    ask_start
+sel_err_own:
+    print_str(msg_err_not_own)
+    j    ask_start
+sel_err_nomove:
+    print_str(msg_err_nomove)
+    j    ask_start
+
+do_move:
+    move $a0, $s0                    # o dang chon
+    move $a1, $s2                    # o dich
     li   $a2, 0                      # khong phai chuoi an
     jal  is_valid_move
     beqz $v0, bad_move               # [C.1d] in thong bao theo ma loi $v1 (ERR_*)
-
+    move $s1, $s2                    # chain_check dung $s1 = o dich
+    li   $t0, -1
+    sw   $t0, selected_square        # da di: bo chon
     move $a0, $s0
     move $a1, $s1
     jal  apply_move
@@ -118,8 +221,8 @@ chain_check:
     print_str(msg_captured)
 
     # Phong Vua khi dang an: KHONG ket thuc luot (de bai muc 1.2.4, Hinh 8).
-    # apply_move da doi quan thanh KING, nen can_chain ben duoi se tu xet
-    # ca 4 huong (an lui) cho quan vua len Vua.
+    # apply_move da doi quan thanh KING, nen can_chain ben duoi tu xet ca 4 huong
+    # (an lui) cho quan vua len Vua.
 
     # [C.1c] Highlight o hien tai truoc khi hoi nuoc tiep
     sw   $s1, selected_square
@@ -162,9 +265,8 @@ chain_bad:
     j    chain_try
 
 # [C.1d] In ma loi $v1 chi tiet
+# KHONG reset selected_square o day: giu nguyen quan dang chon de nhap lai o dich.
 bad_move:
-    li   $t0, -1
-    sw   $t0, selected_square        # reset highlight khi loi
     beq  $v1, ERR_OUT_OF_RANGE,  bm_range
     beq  $v1, ERR_EMPTY,         bm_empty
     beq  $v1, ERR_NOT_OWN,       bm_not_own
