@@ -545,13 +545,13 @@ chain_done_highlight:
 
 Thêm vào `.data`:
 ```asm
-msg_err_range:   .asciiz "Loi: So o phai trong khoang 1-32!\n"
-msg_err_empty:   .asciiz "Loi: O xuat phat khong co quan!\n"
-msg_err_not_own: .asciiz "Loi: Khong phai quan cua ban!\n"
-msg_err_occ:     .asciiz "Loi: O dich da co quan!\n"
-msg_err_dir:     .asciiz "Loi: Huong di hoac khoang cach sai!\n"
-msg_err_capture: .asciiz "Loi: Bat buoc phai an quan!\n"
-msg_err_chain:   .asciiz "Loi: Phai nhay an tiep!\n"
+msg_err_range:   .asciiz "Error: Square must be between 1 and 32!\n"
+msg_err_empty:   .asciiz "Error: Starting square has no piece!\n"
+msg_err_not_own: .asciiz "Error: Piece does not belong to you!\n"
+msg_err_occ:     .asciiz "Error: Destination square is already occupied!\n"
+msg_err_dir:     .asciiz "Error: Invalid direction or distance!\n"
+msg_err_capture: .asciiz "Error: Forced capture is in effect!\n"
+msg_err_chain:   .asciiz "Error: Must continue the capture chain!\n"
 ```
 
 Sửa `bad_move:`:
@@ -660,11 +660,11 @@ cw_blocked:
 
 **Thêm vào `.data`:**
 ```asm
-msg_menu_hdr: .asciiz "=== CO CHECKERS MIPS ===\n"
-msg_menu_1:   .asciiz "Bat buoc an quan? (1=Co, 0=Khong): "
-msg_menu_2:   .asciiz "Vua bay nhieu o?  (1=Co, 0=Khong): "
-msg_menu_3:   .asciiz "Tot di/an lui?    (1=Co, 0=Khong): "
-msg_play_again: .asciiz "Choi lai? (1=Co, 0=Thoat): "
+msg_menu_hdr:   .asciiz "=== MIPS CHECKERS GAME ===\n"
+msg_menu_1:     .asciiz "Force capture? (1=Yes, 0=No): "
+msg_menu_2:     .asciiz "Flying kings?  (1=Yes, 0=No): "
+msg_menu_3:     .asciiz "Pawns move/capture backward? (1=Yes, 0=No): "
+msg_play_again: .asciiz "Play again? (1=Yes, 0=Exit): "
 ```
 
 **Thêm vào `.text` tại `main` (trước `game_loop`):**
