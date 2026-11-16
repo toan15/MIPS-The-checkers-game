@@ -855,4 +855,4 @@ phc_no: li $v0, 0, jr $ra
 
 > [!IMPORTANT]
 > **7. Phong Vua khi chain:**
-> `apply_move` trả `$v1=1` → Người C nhảy `j end_turn` ngay tại `chain_check`, không gọi `can_chain`.
+> `apply_move` trả `$v1=1` chỉ để thông báo, chain vẫn tiếp tục nếu `can_chain` = 1; Vua mới được ăn lùi ngay.
