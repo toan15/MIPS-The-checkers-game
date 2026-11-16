@@ -523,11 +523,6 @@ Sửa `chain_check:` (thêm 2 đoạn):
 chain_check:
     print_str(msg_captured)
 
-    # --- THÊM: kiểm tra phong Vua ---
-    beqz $v1, chain_check_no_king    # $v1 từ apply_move: 1=vừa phong vua
-    j    end_turn                    # phong vua → kết thúc lượt ngay
-chain_check_no_king:
-
     # --- THÊM: highlight ô hiện tại trước khi hỏi nước tiếp ---
     sw   $s1, selected_square
     lw   $a0, current_player

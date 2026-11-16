@@ -117,10 +117,9 @@ ask_land:
 chain_check:
     print_str(msg_captured)
 
-    # [C.1c] Kiem tra phong Vua: neu vua phong Vua ($v1 = 1) -> ket thuc luot ngay
-    beqz $v1, chain_check_no_king
-    j    end_turn
-chain_check_no_king:
+    # Phong Vua khi dang an: KHONG ket thuc luot (de bai muc 1.2.4, Hinh 8).
+    # apply_move da doi quan thanh KING, nen can_chain ben duoi se tu xet
+    # ca 4 huong (an lui) cho quan vua len Vua.
 
     # [C.1c] Highlight o hien tai truoc khi hoi nuoc tiep
     sw   $s1, selected_square
