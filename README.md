@@ -801,10 +801,24 @@ phc_no: li $v0, 0, jr $ra
 2. Settings → **"Initialize Program Counter to global 'main' if defined"** (tích ✓).
 3. Settings → **"Assemble all files in directory"** (tích ✓) **HOẶC** giữ nguyên `.include` ở cuối `main.asm` — **không dùng cả hai cùng lúc** (sẽ bị trùng nhãn).
 4. Tools → **Bitmap Display** → chỉnh:
-   - Unit Width = **8**, Unit Height = **8**
+   - Unit Width = **2**, Unit Height = **2**
    - Display Width = **512**, Display Height = **512**
    - Base address = **0x10040000 (heap)**
    - Bấm **"Connect to MIPS"** trước khi Assemble & Run.
+
+> [!NOTE]
+> `BMP_W_UNITS = 256` khớp với 512/2 = 256 unit columns. Giữ nguyên setting gốc của MARS.
+
+### Turn Indicator (Corner Overlay)
+
+Hàm `draw_turn_indicator` vẽ một **tam giác đều trỏ xuống** cố định ở **góc dưới-phải** của bàn cờ (ô sáng (7,7) — không bao giờ có quân), đổi màu theo lượt:
+
+| Lượt | Màu tam giác | Hex |
+|------|-------------|-----|
+| Black | Tối (đen xám) | `0x00222222` |
+| Red   | Đỏ            | `0x00CC2222` |
+
+**Thông số:** center_x=240, top_y=229, base_half=12, height=22 — vừa gọn trong ô 32×32.
 
 ---
 

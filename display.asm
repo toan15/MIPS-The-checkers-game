@@ -428,6 +428,7 @@ dbb_next:
     move $a0, $s0                # view_player
     jal  bmp_highlight_moves
 dbb_done:
+    jal  draw_turn_indicator
     lw   $s0, 0($sp)
     lw   $s1, 4($sp)
     lw   $s2, 8($sp)
@@ -557,3 +558,62 @@ bhm_done:
     lw   $ra, 20($sp)
     addiu $sp, $sp, 24
     jr   $ra
+
+# ------------------------------------------------------------
+# [DONE] draw_turn_indicator: ve tam giac tro xuong o goc DUOI-PHAI ban co
+#   Vi tri co dinh: goc sang (7,7), px=224..255, py=224..255 (256x256 unit space).
+#   Mau thay doi theo luot: Black -> COLOR_BLACK_PC, Red -> COLOR_RED_PC.
+#   Khong co tham so. Doc current_player tu bien toan cuc.
+#   Kich thuoc: base_half=12, height=22 (vua vao trong o 32x32).
+#   center_x=240, top_y=229.
+#   Stack: 12 byte (luu $ra, $s1, $s0)
+# ------------------------------------------------------------
+draw_turn_indicator:
+    addiu $sp, $sp, -12
+    sw    $ra,  8($sp)
+    sw    $s1,  4($sp)
+    sw    $s0,  0($sp)
+
+    # Chon mau theo luot choi (vi tri luon o goc duoi-phai)
+    lw    $t0, current_player       # 0=Black, 1=Red
+    li    $s1, COLOR_RED_PC
+    bnez  $t0, dti_do_draw
+    li    $s1, COLOR_BLACK_PC
+
+dti_do_draw:
+    li    $s0, 0                    # i = 0
+
+dti_loop:
+    li    $t0, 22
+    bge   $s0, $t0, dti_done
+
+    # half_w = 12 * (22 - i) / 22
+    li    $t0, 22
+    subu  $t0, $t0, $s0            # (22 - i)
+    li    $t1, 12
+    mul   $t0, $t0, $t1            # 12*(22-i)
+    li    $t1, 22
+    div   $t0, $t1
+    mflo  $t0                      # half_w
+
+    beqz  $t0, dti_next
+
+    li    $a0, 240
+    subu  $a0, $a0, $t0            # x_start = 240 - half_w
+    li    $a1, 229
+    addu  $a1, $a1, $s0            # y = 229 + i
+    sll   $a2, $t0, 1              # width = 2*half_w
+    li    $a3, 1
+    move  $t8, $s1                 # dat mau ngay truoc jal
+    jal   bmp_fill_rect
+
+dti_next:
+    addiu $s0, $s0, 1
+    j     dti_loop
+
+dti_done:
+    lw    $s0,  0($sp)
+    lw    $s1,  4($sp)
+    lw    $ra,  8($sp)
+    addiu $sp, $sp, 12
+    jr    $ra
