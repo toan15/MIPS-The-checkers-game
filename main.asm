@@ -35,11 +35,14 @@ msg_err_dir:      .asciiz "Error: Invalid direction or distance!\n"
 msg_err_capture:  .asciiz "Error: Forced capture is in effect!\n"
 msg_err_chain:    .asciiz "Error: Must continue the capture chain!\n"
 msg_err_nomove:   .asciiz "Error: This piece has no valid moves!\n"
+msg_err_input:    .asciiz "Invalid input! Please enter an integer: "
 
 msg_draw_offered: .asciiz "You offered a draw. Opponent accepts by entering 0 on their turn.\n"
 msg_draw_pending: .asciiz "Opponent offers a draw. Enter 0 to accept, or make a move to decline.\n"
 msg_draw_already: .asciiz "You have already offered a draw.\n"
 msg_draw:         .asciiz "Draw agreed. The game is a draw!\n"
+
+input_buf:        .space 64
 .text
 .globl main
 main:
@@ -299,7 +302,15 @@ bm_chain:
     j    ask_start
 
 end_turn:
+    # Offer cau hoa chi co hieu luc 1 luot: neu nguoi choi hien tai di quan
+    # (khong chap nhan hoa) thi huy offer cau hoa dang cho cua doi thu.
     lw   $t0, current_player
+    bnez $t0, et_clear_black
+    sw   $zero, draw_offer_red       # Den da di -> huy offer cua Do (neu co)
+    j    et_switch
+et_clear_black:
+    sw   $zero, draw_offer_black     # Do da di -> huy offer cua Den (neu co)
+et_switch:
     xori $t0, $t0, 1                 # doi luot
     sw   $t0, current_player
     j    game_loop
@@ -329,6 +340,88 @@ go_ask:
 exit_game:
     li   $v0, 10
     syscall
+
+# ------------------------------------------------------------
+# read_int_safe: doc so nguyen bang syscall 8 (read_string)
+#   - Bo qua khoang trang dau/cuoi (' ', '\t', '\r')
+#   - Neu nhap rong, chi co khoang trang, ky tu la, hoac qua dai:
+#     in thong bao loi va yeu cau nhap lai (khong dung game)
+#   - Tra ve: $v0 = so nguyen hop le
+#   - Chi dung $a0, $a1, $v0, $t0-$t5 (giu nguyen $s0-$s7)
+# ------------------------------------------------------------
+read_int_safe:
+ris_loop:
+    la   $a0, input_buf
+    li   $a1, 64
+    li   $v0, 8                      # syscall read_string
+    syscall
+
+    la   $t0, input_buf
+    li   $t2, 0                      # acc = 0
+    li   $t3, 0                      # neg = 0
+    li   $t4, 0                      # has_digit = 0
+
+ris_skip_ws:
+    lbu  $t1, 0($t0)
+    beq  $t1, 32, ris_ws_next        # ' '
+    beq  $t1, 9,  ris_ws_next        # '\t'
+    beq  $t1, 13, ris_ws_next        # '\r'
+    j    ris_check_sign
+ris_ws_next:
+    addiu $t0, $t0, 1
+    j    ris_skip_ws
+
+ris_check_sign:
+    beq  $t1, 45, ris_neg            # '-'
+    beq  $t1, 43, ris_pos            # '+'
+    j    ris_digits
+ris_neg:
+    li   $t3, 1
+    addiu $t0, $t0, 1
+    j    ris_digits
+ris_pos:
+    addiu $t0, $t0, 1
+
+ris_digits:
+    lbu  $t1, 0($t0)
+    blt  $t1, 48, ris_after_digits   # < '0'
+    bgt  $t1, 57, ris_after_digits   # > '9'
+    li   $t5, 100000000
+    bgt  $t2, $t5, ris_invalid       # tranh tran so 32-bit
+    sll  $t5, $t2, 3                 # acc * 8
+    sll  $t2, $t2, 1                 # acc * 2
+    addu $t2, $t2, $t5               # acc = acc * 10
+    addiu $t1, $t1, -48              # c - '0'
+    addu $t2, $t2, $t1
+    li   $t4, 1                      # da doc it nhat 1 chu so
+    addiu $t0, $t0, 1
+    j    ris_digits
+
+ris_after_digits:
+    beqz $t4, ris_invalid            # khong co chu so nao
+
+ris_skip_trail:
+    lbu  $t1, 0($t0)
+    beqz $t1, ris_done               # '\0'
+    beq  $t1, 10, ris_done           # '\n'
+    beq  $t1, 32, ris_trail_next     # ' '
+    beq  $t1, 9,  ris_trail_next     # '\t'
+    beq  $t1, 13, ris_trail_next     # '\r'
+    j    ris_invalid                 # ky tu khong hop le sau so
+ris_trail_next:
+    addiu $t0, $t0, 1
+    j    ris_skip_trail
+
+ris_done:
+    beqz $t3, ris_ret
+    subu $t2, $zero, $t2             # doi dau neu am
+ris_ret:
+    move $v0, $t2
+    jr   $ra
+
+ris_invalid:
+    print_str(msg_err_input)
+    j    ris_loop
 
 .include "rules.asm"
 .include "display.asm"

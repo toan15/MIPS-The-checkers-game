@@ -51,8 +51,7 @@
 .end_macro
 
 .macro read_int
-    li   $v0, 5
-    syscall                  # ket qua trong $v0
+    jal  read_int_safe       # doc so nguyen an toan (khong crash MARS) -> ket qua trong $v0
 .end_macro
 
 # ============================================================
